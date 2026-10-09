@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en" class="dark h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="What Did I Miss? - Modular AI chat log summarizer for teams. Upload .txt exports for executive summaries, action items, and mentions.">
+  <meta name="csrf-token" content="{{ csrf_token() if csrf_token is defined and csrf_token else '' }}">
+  <title>What Did I Miss? — Chat Log Summarizer</title>
+  
+  <!-- Tailwind CSS via CDN with Crimson Theme Extension -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            crimson: {
+              50: '#fff1f2',
+              100: '#ffe4e6',
+              200: '#fecdd3',
+              300: '#fda4af',
+              400: '#fb7185',
+              500: '#f43f5e',
+              600: '#e11d48',
+              700: '#be123c',
+              800: '#9f1239',
+              900: '#881337',
+              950: '#4c0519',
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-[#0c0205] text-rose-50 min-h-full flex flex-col justify-between selection:bg-crimson-600 selection:text-white font-sans antialiased">
+
+  <!-- Accessible Skip Link -->
+  <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-crimson-600 focus:text-white focus:rounded-md focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-rose-200">
+    Skip to main content
+  </a>
+
+  <!-- Header -->
+  <header class="w-full border-b border-crimson-950/80 bg-[#140308]/80 backdrop-blur-md sticky top-0 z-40">
+    <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-crimson-700 via-crimson-600 to-rose-500 flex items-center justify-center shadow-lg shadow-crimson-900/40 text-white font-bold" aria-hidden="true">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+            What Did I Miss?
+            <span class="text-xs px-2 py-0.5 rounded-full bg-crimson-500/10 text-crimson-400 border border-crimson-500/30 font-medium">Crimson Edition</span>
+          </h1>
+          <p class="text-xs text-rose-300/70">Intelligent chat log distillation for busy teams</p>
+        </div>
+      </div>
+      
+      <div class="flex items-center space-x-2">
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-crimson-950/90 text-crimson-300 border border-crimson-800">
+          <span class="w-1.5 h-1.5 mr-1.5 bg-crimson-400 rounded-full animate-pulse" aria-hidden="true"></span>
+          Ready
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main id="main-content" class="flex-1 w-full max-w-4xl mx-auto px-4 py-8 flex flex-col justify-center">
+    
+    <!-- Upload Section -->
+    <section id="upload-section" aria-labelledby="upload-heading" class="w-full bg-[#16050b] border border-crimson-950 rounded-2xl p-6 sm:p-8 shadow-2xl shadow-crimson-950/40 relative overflow-hidden">
+      <!-- Decorative background crimson glow -->
+      <div class="absolute -top-24 -right-24 w-60 h-60 bg-crimson-600/15 rounded-full blur-3xl pointer-events-none" aria-hidden="true"></div>
+      
+      <div class="mb-6">
+        <h2 id="upload-heading" class="text-2xl font-bold tracking-tight text-white mb-2">Upload Chat Export</h2>
+        <p class="text-rose-200/70 text-sm">
+          Select or drag-and-drop a <code class="px-1.5 py-0.5 rounded bg-crimson-950/80 text-rose-300 border border-crimson-900/60 text-xs font-mono">.txt</code> transcript from Slack, Teams, Discord, or WhatsApp to extract executive summaries, action items, and mentions.
+        </p>
+      </div>
+
+      <!-- Error / Alert Notification Container -->
+      <div id="alert-container" class="hidden mb-6" role="alert" aria-live="assertive">
+        <div class="p-4 rounded-xl bg-crimson-950/80 border border-crimson-700 text-rose-100 flex items-start space-x-3 shadow-lg shadow-crimson-950/60">
+          <svg class="w-5 h-5 text-crimson-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+          </svg>
+          <div class="flex-1 text-sm font-medium" id="alert-message">
+            <!-- Dynamic error message -->
+          </div>
+          <button type="button" id="alert-dismiss" class="text-rose-300 hover:text-white focus:outline-none focus:ring-2 focus:ring-crimson-400 rounded" aria-label="Dismiss error notification">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Upload Form -->
+      <form id="chat-upload-form" class="space-y-6" novalidate>
+        <!-- CSRF Token Hidden Field -->
+        {{ form.hidden_tag() }}
+
+        <!-- Accessible Drag & Drop Zone -->
+        <div>
+          <label for="chat_file" class="block text-sm font-medium text-rose-200 mb-2">
+            Chat Export File
+          </label>
+          <div 
+            id="drop-zone"
+            tabindex="0"
+            role="button"
+            aria-label="Upload .txt chat export. Press Enter or Space to choose a file, or drag and drop a .txt file here"
+            class="group relative border-2 border-dashed border-crimson-900/60 hover:border-crimson-500 focus:border-crimson-500 focus:ring-2 focus:ring-crimson-500 focus:ring-offset-2 focus:ring-offset-[#0c0205] rounded-xl p-8 text-center transition-all duration-200 cursor-pointer bg-[#0f0307]/70 hover:bg-[#1f0610]/60 outline-none"
+          >
+            <!-- Native file input hidden visually but accessible -->
+            <input 
+              type="file" 
+              id="chat_file" 
+              name="chat_file" 
+              accept=".txt,text/plain" 
+              class="sr-only"
+              aria-describedby="file-instructions"
+            />
+            
+            <div class="flex flex-col items-center justify-center space-y-3 pointer-events-none">
+              <div class="w-12 h-12 rounded-full bg-crimson-950/70 border border-crimson-900/50 flex items-center justify-center text-rose-300 group-hover:text-crimson-300 group-hover:scale-110 transition-transform duration-200" aria-hidden="true">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+              </div>
+              <div class="text-sm">
+                <span class="font-semibold text-crimson-400 group-hover:text-crimson-300">Click to upload</span>
+                <span class="text-rose-200/70"> or drag and drop</span>
+              </div>
+              <p id="file-instructions" class="text-xs text-rose-300/50">
+                Only plain text (.txt) files • Maximum 2MB
+              </p>
+            </div>
+          </div>
+
+          <!-- Selected File Details Pill -->
+          <div id="file-info" class="hidden mt-3 p-3 bg-crimson-950/40 border border-crimson-900/50 rounded-lg flex items-center justify-between text-sm" aria-live="polite">
+            <div class="flex items-center space-x-3 truncate">
+              <svg class="w-5 h-5 text-crimson-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              <div class="truncate">
+                <p id="selected-filename" class="font-medium text-rose-100 truncate">chat.txt</p>
+                <p id="selected-filesize" class="text-xs text-rose-300/60">12.4 KB</p>
+              </div>
+            </div>
+            <button 
+              type="button" 
+              id="remove-file-btn" 
+              class="px-2 py-1 text-xs text-rose-300 hover:text-white hover:bg-crimson-900/50 rounded focus:outline-none focus:ring-2 focus:ring-crimson-500 transition-colors"
+              aria-label="Remove selected file"
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <div>
+          <button 
+            type="submit" 
+            id="submit-btn" 
+            class="w-full py-3.5 px-6 rounded-xl font-medium text-white bg-gradient-to-r from-crimson-700 via-crimson-600 to-rose-600 hover:from-crimson-600 hover:to-rose-500 active:from-crimson-800 active:to-rose-700 focus:outline-none focus:ring-2 focus:ring-crimson-400 focus:ring-offset-2 focus:ring-offset-[#0c0205] transition-all duration-150 flex items-center justify-center space-x-2 shadow-lg shadow-crimson-950/60 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+            <span id="submit-btn-text">Summarize Chat</span>
+          </button>
+        </div>
+      </form>
+
+      <!-- Loading State Container -->
+      <div id="loading-container" class="hidden mt-6 text-center py-6" role="status" aria-live="polite" aria-busy="false">
+        <div class="inline-flex items-center justify-center space-x-3 mb-3">
+          <svg class="animate-spin h-6 w-6 text-crimson-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <span class="text-sm font-medium text-rose-200">Processing chat log through summarizer pipeline...</span>
+        </div>
+        <div class="w-full bg-crimson-950/60 border border-crimson-900/40 rounded-full h-1.5 overflow-hidden max-w-xs mx-auto">
+          <div class="bg-gradient-to-r from-crimson-600 to-rose-500 h-1.5 rounded-full w-2/3 animate-[pulse_1.5s_ease-in-out_infinite]"></div>
+        </div>
+        <p class="text-xs text-rose-300/60 mt-2">Extracting executive overview, action items, and key mentions</p>
+      </div>
+    </section>
+
+    <!-- Results Section -->
+    <section id="results-section" aria-labelledby="results-heading" class="hidden w-full mt-8 space-y-6" aria-live="polite">
+      <div class="flex items-center justify-between">
+        <h2 id="results-heading" class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+          <span>Analysis Results</span>
+          <span class="text-xs font-normal px-2.5 py-0.5 rounded-full bg-crimson-500/10 text-crimson-300 border border-crimson-500/30">AI Extracted</span>
+        </h2>
+        <button 
+          type="button" 
+          id="reset-btn" 
+          class="text-xs text-rose-300 hover:text-white px-3 py-1.5 rounded-lg border border-crimson-900/70 hover:border-crimson-700 hover:bg-crimson-950/40 focus:outline-none focus:ring-2 focus:ring-crimson-400 transition-colors"
+          aria-label="Upload another chat log"
+        >
+          ← Summarize Another
+        </button>
+      </div>
+
+      <!-- 1. Executive Summary Card -->
+      <article class="bg-[#16050b] border border-crimson-950 rounded-2xl p-6 shadow-xl shadow-crimson-950/30" aria-labelledby="summary-card-title">
+        <div class="flex items-center justify-between mb-4 pb-3 border-b border-crimson-950/80">
+          <div class="flex items-center space-x-2">
+            <div class="w-8 h-8 rounded-lg bg-crimson-500/10 text-crimson-400 flex items-center justify-center border border-crimson-500/20" aria-hidden="true">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/>
+              </svg>
+            </div>
+            <h3 id="summary-card-title" class="text-base font-semibold text-white">Executive Summary</h3>
+          </div>
+          <button 
+            type="button" 
+            id="copy-summary-btn" 
+            class="text-xs text-rose-300 hover:text-white flex items-center space-x-1 px-2.5 py-1 rounded bg-crimson-950/60 hover:bg-crimson-900/60 border border-crimson-900/50 focus:outline-none focus:ring-2 focus:ring-crimson-400 transition-colors"
+            aria-label="Copy executive summary to clipboard"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+            </svg>
+            <span id="copy-summary-text">Copy</span>
+          </button>
+        </div>
+        <p id="summary-content" class="text-rose-100/90 text-sm leading-relaxed whitespace-pre-line">
+          <!-- Rendered safely via textContent -->
+        </p>
+      </article>
+
+      <!-- 2. Action Items Card -->
+      <article class="bg-[#16050b] border border-crimson-950 rounded-2xl p-6 shadow-xl shadow-crimson-950/30" aria-labelledby="actions-card-title">
+        <div class="flex items-center justify-between mb-4 pb-3 border-b border-crimson-950/80">
+          <div class="flex items-center space-x-2">
+            <div class="w-8 h-8 rounded-lg bg-crimson-500/10 text-crimson-400 flex items-center justify-center border border-crimson-500/20" aria-hidden="true">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+              </svg>
+            </div>
+            <h3 id="actions-card-title" class="text-base font-semibold text-white">Action Items</h3>
+          </div>
+          <span id="actions-count-badge" class="text-xs px-2 py-0.5 rounded-full bg-crimson-950 text-crimson-300 border border-crimson-900/50 font-mono">0</span>
+        </div>
+        <ul id="action-items-list" class="space-y-2.5" role="list">
+          <!-- Populated safely via DOM APIs -->
+        </ul>
+      </article>
+
+      <!-- 3. Mentions Card -->
+      <article class="bg-[#16050b] border border-crimson-950 rounded-2xl p-6 shadow-xl shadow-crimson-950/30" aria-labelledby="mentions-card-title">
+        <div class="flex items-center justify-between mb-4 pb-3 border-b border-crimson-950/80">
+          <div class="flex items-center space-x-2">
+            <div class="w-8 h-8 rounded-lg bg-crimson-500/10 text-crimson-400 flex items-center justify-center border border-crimson-500/20" aria-hidden="true">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+              </svg>
+            </div>
+            <h3 id="mentions-card-title" class="text-base font-semibold text-white">Mentions & Participants</h3>
+          </div>
+          <span id="mentions-count-badge" class="text-xs px-2 py-0.5 rounded-full bg-crimson-950 text-crimson-300 border border-crimson-900/50 font-mono">0</span>
+        </div>
+        <div id="mentions-container" class="flex flex-wrap gap-2" role="group" aria-label="Detected participant mentions">
+          <!-- Populated safely via DOM APIs -->
+        </div>
+      </article>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="w-full border-t border-crimson-950/80 py-6 mt-12 bg-[#0c0205] text-rose-300/50 text-xs text-center">
+    <div class="max-w-4xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <p>Built with Flask, Tailwind CSS, &amp; WCAG 2.1 AA Accessibility Standards.</p>
+      <div class="flex items-center space-x-4">
+        <span>Keyboard: <kbd class="px-1.5 py-0.5 rounded bg-crimson-950/80 text-rose-200 border border-crimson-900/40 font-mono text-[10px]">Tab</kbd> to navigate</span>
+        <span><kbd class="px-1.5 py-0.5 rounded bg-crimson-950/80 text-rose-200 border border-crimson-900/40 font-mono text-[10px]">Enter</kbd> to activate</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Vanilla JavaScript Logic -->
+  <script>
+    (function () {
+      'use strict';
+
+      // DOM Elements
+      const form = document.getElementById('chat-upload-form');
+      const fileInput = document.getElementById('chat_file');
+      const dropZone = document.getElementById('drop-zone');
+      const fileInfo = document.getElementById('file-info');
+      const selectedFilename = document.getElementById('selected-filename');
+      const selectedFilesize = document.getElementById('selected-filesize');
+      const removeFileBtn = document.getElementById('remove-file-btn');
+      const submitBtn = document.getElementById('submit-btn');
+      const submitBtnText = document.getElementById('submit-btn-text');
+      const loadingContainer = document.getElementById('loading-container');
+      const resultsSection = document.getElementById('results-section');
+      const alertContainer = document.getElementById('alert-container');
+      const alertMessage = document.getElementById('alert-message');
+      const alertDismiss = document.getElementById('alert-dismiss');
+      const resetBtn = document.getElementById('reset-btn');
+      const copySummaryBtn = document.getElementById('copy-summary-btn');
+      const copySummaryText = document.getElementById('copy-summary-text');
+
+      const summaryContent = document.getElementById('summary-content');
+      const actionItemsList = document.getElementById('action-items-list');
+      const actionsCountBadge = document.getElementById('actions-count-badge');
+      const mentionsContainer = document.getElementById('mentions-container');
+      const mentionsCountBadge = document.getElementById('mentions-count-badge');
+
+      // Helper: format file size
+      function formatBytes(bytes, decimals = 1) {
+        if (!bytes || bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['Bytes', 'KB', 'MB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+      }
+
+      // Show alert error
+      function showError(message) {
+        alertMessage.textContent = message;
+        alertContainer.classList.remove('hidden');
+        alertContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+
+      // Hide alert error
+      function hideError() {
+        alertContainer.classList.add('hidden');
+        alertMessage.textContent = '';
+      }
+
+      alertDismiss.addEventListener('click', hideError);
+
+      // Handle file selection
+      function handleFileSelected(file) {
+        hideError();
+        if (!file) return;
+
+        if (!file.name.toLowerCase().endsWith('.txt')) {
+          showError('Invalid file format: Please select a plain text (.txt) file.');
+          fileInput.value = '';
+          fileInfo.classList.add('hidden');
+          return;
+        }
+
+        const maxBytes = 2 * 1024 * 1024; // 2MB
+        if (file.size > maxBytes) {
+          showError('File is too large: Maximum allowed size is 2MB.');
+          fileInput.value = '';
+          fileInfo.classList.add('hidden');
+          return;
+        }
+
+        selectedFilename.textContent = file.name;
+        selectedFilesize.textContent = formatBytes(file.size);
+        fileInfo.classList.remove('hidden');
+      }
+
+      fileInput.addEventListener('change', function () {
+        if (fileInput.files.length > 0) {
+          handleFileSelected(fileInput.files[0]);
+        }
+      });
+
+      // Drag & drop handlers
+      ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropZone.classList.add('border-crimson-500', 'bg-[#1f0610]/80');
+        });
+      });
+
+      ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropZone.classList.remove('border-crimson-500', 'bg-[#1f0610]/80');
+        });
+      });
+
+      dropZone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        if (dt && dt.files && dt.files.length > 0) {
+          fileInput.files = dt.files;
+          handleFileSelected(dt.files[0]);
+        }
+      });
+
+      // Keyboard support for dropZone (Enter & Space)
+      dropZone.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          fileInput.click();
+        }
+      });
+
+      // Click dropzone triggers file picker
+      dropZone.addEventListener('click', () => {
+        fileInput.click();
+      });
+
+      // Remove selected file
+      removeFileBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        fileInput.value = '';
+        fileInfo.classList.add('hidden');
+        hideError();
+      });
+
+      // Set loading state
+      function setLoading(isLoading) {
+        submitBtn.disabled = isLoading;
+        loadingContainer.setAttribute('aria-busy', isLoading ? 'true' : 'false');
+        if (isLoading) {
+          loadingContainer.classList.remove('hidden');
+          submitBtnText.textContent = 'Analyzing...';
+        } else {
+          loadingContainer.classList.add('hidden');
+          submitBtnText.textContent = 'Summarize Chat';
+        }
+      }
+
+      // Safe rendering of results using DOM APIs (Anti-XSS guarantee)
+      function renderResults(data) {
+        // 1. Summary
+        summaryContent.textContent = data.summary || 'No summary available.';
+
+        // 2. Action Items
+        actionItemsList.innerHTML = '';
+        const items = Array.isArray(data.action_items) ? data.action_items : [];
+        actionsCountBadge.textContent = items.length;
+
+        if (items.length === 0) {
+          const emptyLi = document.createElement('li');
+          emptyLi.className = 'text-xs text-rose-300/60 italic';
+          emptyLi.textContent = 'No explicit action items detected in this chat transcript.';
+          actionItemsList.appendChild(emptyLi);
+        } else {
+          items.forEach((itemText, idx) => {
+            const li = document.createElement('li');
+            li.className = 'flex items-start space-x-3 p-2.5 rounded-lg bg-crimson-950/40 border border-crimson-900/40 hover:border-crimson-700/60 transition-colors';
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = `action-item-${idx}`;
+            checkbox.className = 'mt-1 h-4 w-4 rounded border-crimson-900 bg-crimson-950/80 text-crimson-600 focus:ring-crimson-500 focus:ring-offset-[#0c0205] cursor-pointer';
+
+            const label = document.createElement('label');
+            label.htmlFor = `action-item-${idx}`;
+            label.className = 'text-sm text-rose-100/90 leading-snug cursor-pointer select-none';
+            label.textContent = itemText;
+
+            checkbox.addEventListener('change', () => {
+              if (checkbox.checked) {
+                label.classList.add('line-through', 'text-rose-400/50');
+              } else {
+                label.classList.remove('line-through', 'text-rose-400/50');
+              }
+            });
+
+            li.appendChild(checkbox);
+            li.appendChild(label);
+            actionItemsList.appendChild(li);
+          });
+        }
+
+        // 3. Mentions
+        mentionsContainer.innerHTML = '';
+        const mentions = Array.isArray(data.mentions) ? data.mentions : [];
+        mentionsCountBadge.textContent = mentions.length;
+
+        if (mentions.length === 0) {
+          const emptySpan = document.createElement('span');
+          emptySpan.className = 'text-xs text-rose-300/60 italic';
+          emptySpan.textContent = 'No user mentions detected.';
+          mentionsContainer.appendChild(emptySpan);
+        } else {
+          mentions.forEach(mentionText => {
+            const pill = document.createElement('span');
+            pill.className = 'inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-crimson-500/10 text-crimson-300 border border-crimson-500/30 hover:border-crimson-400 hover:bg-crimson-500/20 transition-colors';
+            pill.textContent = mentionText;
+            mentionsContainer.appendChild(pill);
+          });
+        }
+
+        resultsSection.classList.remove('hidden');
+        resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      // Reset form
+      resetBtn.addEventListener('click', () => {
+        resultsSection.classList.add('hidden');
+        fileInput.value = '';
+        fileInfo.classList.add('hidden');
+        hideError();
+        dropZone.focus();
+      });
+
+      // Copy summary to clipboard
+      copySummaryBtn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(summaryContent.textContent);
+          copySummaryText.textContent = 'Copied!';
+          setTimeout(() => {
+            copySummaryText.textContent = 'Copy';
+          }, 2000);
+        } catch (err) {
+          copySummaryText.textContent = 'Failed';
+        }
+      });
+
+      // Form submission handler
+      form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        hideError();
+
+        if (!fileInput.files || fileInput.files.length === 0) {
+          showError('Please select a .txt chat export file before submitting.');
+          dropZone.focus();
+          return;
+        }
+
+        const file = fileInput.files[0];
+        if (!file.name.toLowerCase().endsWith('.txt')) {
+          showError('Only .txt chat exports are supported.');
+          return;
+        }
+
+        // Retrieve CSRF token
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        const csrfInput = document.querySelector('input[name="csrf_token"]');
+        const csrfToken = (csrfMeta ? csrfMeta.content : '') || (csrfInput ? csrfInput.value : '');
+
+        const formData = new FormData();
+        formData.append('chat_file', file);
+        if (csrfToken) {
+          formData.append('csrf_token', csrfToken);
+        }
+
+        setLoading(true);
+
+        try {
+          const response = await fetch('/api/summarize', {
+            method: 'POST',
+            body: formData,
+            headers: csrfToken ? { 'X-CSRFToken': csrfToken } : {}
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            let errorText = data.error || 'Failed to process chat export.';
+            if (data.message) {
+              errorText += ': ' + data.message;
+            } else if (data.details && Array.isArray(data.details)) {
+              errorText += ' ' + data.details.join(', ');
+            }
+            showError(errorText);
+            return;
+          }
+
+          renderResults(data);
+        } catch (err) {
+          showError('Network error or server unavailable. Please try again.');
+        } finally {
+          setLoading(false);
+        }
+      });
+
+    })();
+  </script>
+</body>
+</html>
